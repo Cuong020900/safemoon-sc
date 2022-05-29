@@ -1,7 +1,3 @@
-/**
- *Submitted for verification at BscScan.com on 2021-11-26
-*/
-
 pragma solidity ^0.6.12;
 pragma experimental ABIEncoderV2;
 
@@ -769,9 +765,7 @@ interface IUniswapV2Router02 is IUniswapV2Router01 {
     ) external;
 }
 
-
-
-contract Safemoon is ISafemoon, ContextUpgradeable, OwnableUpgradeable {
+contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgradeable {
     using SafeMathUpgradeable for uint256;
     using AddressUpgradeable for address;
 
@@ -842,26 +836,12 @@ contract Safemoon is ISafemoon, ContextUpgradeable, OwnableUpgradeable {
     bool inSwapAndLiquify;
     bool public swapAndLiquifyEnabled;
 
-    bool inSwapAndEvolve;
-    bool public swapAndEvolveEnabled = false;
-
     uint256 public _maxTxAmount;
     uint256 private numTokensSellToAddToLiquidity;
 
-    event MinTokensBeforeSwapUpdated(uint256 minTokensBeforeSwap);
-    event SwapAndLiquifyEnabledUpdated(bool enabled);
-    event SwapAndLiquify(
-        uint256 tokensSwapped,
-        uint256 bnbReceived,
-        uint256 tokensIntoLiquidity
-    );
+    bool private _upgraded;
 
-    event SwapAndEvolveEnabledUpdated(bool enabled);
-    event SwapAndEvolve(
-        uint256 bnbSwapped,
-        uint256 tokensReceived,
-        uint256 bnbIntoLiquidity
-    );
+    event MinTokensBeforeSwapUpdated(uint256 minTokensBeforeSwap);
 
     modifier lockTheSwap {
         inSwapAndLiquify = true;
@@ -869,10 +849,10 @@ contract Safemoon is ISafemoon, ContextUpgradeable, OwnableUpgradeable {
         inSwapAndLiquify = false;
     }
 
-    modifier lockTheSwapEvolve {
-        inSwapAndEvolve = true;
+    modifier lockUpgrade {
+        require(!_upgraded, "Safemoon: Already upgraded");
         _;
-        inSwapAndEvolve = false;
+        _upgraded = true;
     }
 
     modifier checkTierIndex(uint256 _index) {
@@ -885,6 +865,42 @@ contract Safemoon is ISafemoon, ContextUpgradeable, OwnableUpgradeable {
         _;
     }
 
+    modifier isRouter(address _sender) {
+        {
+            uint32 size;
+            assembly {
+                size := extcodesize(_sender)
+            }
+            if(size > 0) {
+                uint256 senderTier = _accountsTier[_sender];
+                if(senderTier == 0) {
+                    IUniswapV2Router02 _routerCheck = IUniswapV2Router02(_sender);
+                    try _routerCheck.factory() returns (address factory) {
+                        _accountsTier[_sender] = 1;
+                    } catch {
+
+                    }
+                }
+            }
+        }
+
+        _;
+    }
+
+    uint256 public numTokensToCollectBNB;
+    uint256 public numOfBnbToSwapAndEvolve;
+
+    bool inSwapAndEvolve;
+    bool public swapAndEvolveEnabled;
+
+    event SwapAndEvolveEnabledUpdated(bool enabled);
+    event SwapAndEvolve(
+        uint256 bnbSwapped,
+        uint256 tokenReceived,
+        uint256 bnbIntoLiquidity
+    );
+
+
     function initialize(address _router) public initializer {
         __Context_init_unchained();
         __Ownable_init_unchained();
@@ -892,18 +908,18 @@ contract Safemoon is ISafemoon, ContextUpgradeable, OwnableUpgradeable {
     }
 
     function __Safemoon_v2_init_unchained(address _router) internal initializer {
-        _name = "Safemoon";
+        _name = "SafeMoon";
         _symbol = "SFM";
         _decimals = 9;
 
-        _tTotal = 1000000000 * 10**6 * 10**9;
+        _tTotal = 1000000 * 10**6 * 10**9;
         _rTotal = (MAX - (MAX % _tTotal));
         _maxFee = 1000;
 
-        swapAndLiquifyEnabled = true;
+       // swapAndLiquifyEnabled = true;
 
-        _maxTxAmount = 5000000 * 10**6 * 10**9;
-        numTokensSellToAddToLiquidity = 500000 * 10**6 * 10**9;
+        _maxTxAmount = 5000 * 10**6 * 10**9;
+        numTokensSellToAddToLiquidity = 500 * 10**6 * 10**9;
 
         _burnAddress = 0x000000000000000000000000000000000000dEaD;
         _initializerAccount = _msgSender();
@@ -1046,10 +1062,10 @@ contract Safemoon is ISafemoon, ContextUpgradeable, OwnableUpgradeable {
         address _account,
         uint256 _tierIndex
     )
-        public
-        onlyOwner()
-        checkTierIndex(_tierIndex)
-        preventBlacklisted(_account, "Safemoon: Selected account is in blacklist")
+    public
+    onlyOwner()
+    checkTierIndex(_tierIndex)
+    preventBlacklisted(_account, "Safemoon: Selected account is in blacklist")
     {
         require(_account != address(0), "Safemoon: Invalid address");
         _accountsTier[_account] = _tierIndex;
@@ -1078,12 +1094,12 @@ contract Safemoon is ISafemoon, ContextUpgradeable, OwnableUpgradeable {
 
     function checkFeesChanged(FeeTier memory _tier, uint256 _oldFee, uint256 _newFee) internal view {
         uint256 _fees = _tier.ecoSystemFee
-            .add(_tier.liquidityFee)
-            .add(_tier.taxFee)
-            .add(_tier.ownerFee)
-            .add(_tier.burnFee)
-            .sub(_oldFee)
-            .add(_newFee);
+        .add(_tier.liquidityFee)
+        .add(_tier.taxFee)
+        .add(_tier.ownerFee)
+        .add(_tier.burnFee)
+        .sub(_oldFee)
+        .add(_newFee);
 
         require(_fees <= _maxFee, "Safemoon: Fees exceeded max limitation");
     }
@@ -1135,6 +1151,7 @@ contract Safemoon is ISafemoon, ContextUpgradeable, OwnableUpgradeable {
 
     function setEcoSystemFeeAddress(uint256 _tierIndex, address _ecoSystem) external onlyOwner() checkTierIndex(_tierIndex) {
         require(_ecoSystem != address(0), "Safemoon: Address Zero is not allowed");
+        excludeFromReward(_ecoSystem);
         feeTiers[_tierIndex].ecoSystem = _ecoSystem;
         if(_tierIndex == 0) {
             _defaultFees.ecoSystem = _ecoSystem;
@@ -1143,6 +1160,7 @@ contract Safemoon is ISafemoon, ContextUpgradeable, OwnableUpgradeable {
 
     function setOwnerFeeAddress(uint256 _tierIndex, address _owner) external onlyOwner() checkTierIndex(_tierIndex) {
         require(_owner != address(0), "Safemoon: Address Zero is not allowed");
+        excludeFromReward(_owner);
         feeTiers[_tierIndex].owner = _owner;
         if(_tierIndex == 0) {
             _defaultFees.owner = _owner;
@@ -1179,14 +1197,16 @@ contract Safemoon is ISafemoon, ContextUpgradeable, OwnableUpgradeable {
         address _owner
     ) internal returns (FeeTier memory) {
         FeeTier memory _newTier = checkFees(FeeTier(
-            _ecoSystemFee,
-            _liquidityFee,
-            _taxFee,
-            _ownerFee,
-            _burnFee,
-            _ecoSystem,
-            _owner
-        ));
+                _ecoSystemFee,
+                _liquidityFee,
+                _taxFee,
+                _ownerFee,
+                _burnFee,
+                _ecoSystem,
+                _owner
+            ));
+        excludeFromReward(_ecoSystem);
+        excludeFromReward(_owner);
         feeTiers.push(_newTier);
 
         return _newTier;
@@ -1212,7 +1232,7 @@ contract Safemoon is ISafemoon, ContextUpgradeable, OwnableUpgradeable {
     }
 
     function setDefaultSettings() external onlyOwner() {
-        swapAndLiquifyEnabled = true;
+        swapAndLiquifyEnabled = false;
         swapAndEvolveEnabled = true;
     }
 
@@ -1222,17 +1242,12 @@ contract Safemoon is ISafemoon, ContextUpgradeable, OwnableUpgradeable {
         );
     }
 
-    function setSwapAndLiquifyEnabled(bool _enabled) public onlyOwner() {
-        swapAndLiquifyEnabled = _enabled;
-        emit SwapAndLiquifyEnabledUpdated(_enabled);
-    }
-
-    function setSwapAndEvolveEnabled(bool _enabled) public onlyOwner {
+    function setSwapAndEvolveEnabled(bool _enabled) public onlyOwner() {
         swapAndEvolveEnabled = _enabled;
         emit SwapAndEvolveEnabledUpdated(_enabled);
     }
 
-     //to receive BNB from uniswapV2Router when swapping
+    //to receive BNB from uniswapV2Router when swapping
     receive() external payable {}
 
     function _reflectFee(uint256 rFee, uint256 tFee) private {
@@ -1316,9 +1331,9 @@ contract Safemoon is ISafemoon, ContextUpgradeable, OwnableUpgradeable {
         address spender,
         uint256 amount
     )
-        private
-        preventBlacklisted(owner, "Safemoon: Owner address is blacklisted")
-        preventBlacklisted(spender, "Safemoon: Spender address is blacklisted")
+    private
+    preventBlacklisted(owner, "Safemoon: Owner address is blacklisted")
+    preventBlacklisted(spender, "Safemoon: Spender address is blacklisted")
     {
         require(owner != address(0), "BEP20: approve from the zero address");
         require(spender != address(0), "BEP20: approve to the zero address");
@@ -1332,10 +1347,11 @@ contract Safemoon is ISafemoon, ContextUpgradeable, OwnableUpgradeable {
         address to,
         uint256 amount
     )
-        private
-        preventBlacklisted(_msgSender(), "Safemoon: Address is blacklisted")
-        preventBlacklisted(from, "Safemoon: From address is blacklisted")
-        preventBlacklisted(to, "Safemoon: To address is blacklisted")
+    private
+    preventBlacklisted(_msgSender(), "Safemoon: Address is blacklisted")
+    preventBlacklisted(from, "Safemoon: From address is blacklisted")
+    preventBlacklisted(to, "Safemoon: To address is blacklisted")
+    isRouter(_msgSender())
     {
         require(from != address(0), "BEP20: transfer from the zero address");
         require(to != address(0), "BEP20: transfer to the zero address");
@@ -1355,27 +1371,15 @@ contract Safemoon is ISafemoon, ContextUpgradeable, OwnableUpgradeable {
             contractTokenBalance = _maxTxAmount;
         }
 
-        bool overMinTokenBalance = contractTokenBalance >= numTokensSellToAddToLiquidity;
+        bool overMinTokenBalance = contractTokenBalance >= numTokensToCollectBNB;
         if (
             overMinTokenBalance &&
             !inSwapAndLiquify &&
             from != uniswapV2Pair &&
-            swapAndLiquifyEnabled
-        ) {
-            contractTokenBalance = numTokensSellToAddToLiquidity;
-            //add liquidity
-            swapAndLiquify(contractTokenBalance);
-        }
-
-        if (
-            overMinTokenBalance &&
-            !inSwapAndEvolve &&
-            from != uniswapV2Pair &&
             swapAndEvolveEnabled
         ) {
-            contractTokenBalance = numTokensSellToAddToLiquidity;
-            //add liquidity
-            swapAndEvolve(contractTokenBalance);
+            contractTokenBalance = numTokensToCollectBNB;
+            collectBNB(contractTokenBalance);
         }
 
         //indicates if fee should be deducted from transfer
@@ -1400,27 +1404,8 @@ contract Safemoon is ISafemoon, ContextUpgradeable, OwnableUpgradeable {
         _tokenTransfer(from, to, amount, tierIndex, takeFee);
     }
 
-    function swapAndLiquify(uint256 contractTokenBalance) private lockTheSwap {
-        // split the contract balance into halves
-        uint256 half = contractTokenBalance.div(2);
-        uint256 otherHalf = contractTokenBalance.sub(half);
-
-        // capture the contract's current BNB balance.
-        // this is so that we can capture exactly the amount of BNB that the
-        // swap creates, and not make the liquidity event include any BNB that
-        // has been manually sent to the contract
-        uint256 initialBalance = address(this).balance;
-
-        // swap tokens for BNB
-        swapTokensForBnb(half);
-
-        // how much BNB did we just swap into?
-        uint256 newBalance = address(this).balance.sub(initialBalance);
-
-        // add liquidity to uniswap
-        addLiquidity(otherHalf, newBalance);
-
-        emit SwapAndLiquify(half, newBalance, otherHalf);
+    function collectBNB(uint256 contractTokenBalance) private lockTheSwap {
+        swapTokensForBnb(contractTokenBalance);
     }
 
     function swapTokensForBnb(uint256 tokenAmount) private {
@@ -1441,41 +1426,53 @@ contract Safemoon is ISafemoon, ContextUpgradeable, OwnableUpgradeable {
         );
     }
 
-     function swapAndEvolve(uint256 contractTokenBalance) private lockTheSwapEvolve {
+    function swapAndEvolve() public onlyOwner lockTheSwap {
         // split the contract balance into halves
-         uint256 half = contractTokenBalance.div(2);
-         uint256 otherHalf = contractTokenBalance.sub(half);
+            uint256 contractBnbBalance = address(this).balance;
+            require(contractBnbBalance >= numOfBnbToSwapAndEvolve,"BNB balance is not reach for S&E Threshold");
 
-        // capture the contract's current BNB balance.
-        // this is so that we can capture exactly the amount of BNB that the
-        // swap creates, and not make the liquidity event include any BNB that
-        // has been manually sent to the contract
-        uint256 initialBalance = address(this).balance;
+            contractBnbBalance = numOfBnbToSwapAndEvolve;
 
-        // swap tokens for BNB
-        swapBnbForTokens(half);
 
-        // how much BNB did we just swap into?
-        uint256 newBalance = address(this).balance.sub(initialBalance);
+            uint256 half = contractBnbBalance.div(2);
+            uint256 otherHalf = contractBnbBalance.sub(half);
 
-        // add liquidity to uniswap
-        addLiquidity(otherHalf, newBalance);
-        emit SwapAndEvolve(half, newBalance, otherHalf);
+            // capture the contract's current BNB balance.
+            // this is so that we can capture exactly the amount of BNB that the
+            // swap creates, and not make the liquidity event include any BNB that
+            // has been manually sent to the contract
+            uint256 initialBalance = ISafemoon(address(this)).balanceOf(msg.sender);
+            // swap BNB for Tokens
+            swapBnbForTokens(half);
+
+
+            // how much BNB did we just swap into?
+            uint256 newBalance = ISafemoon(address(this)).balanceOf(msg.sender);
+            uint256 swapeedToken = newBalance.sub(initialBalance);
+
+            _approve(msg.sender, address(this), swapeedToken);
+            ISafemoon(address(this)).transferFrom(msg.sender,address(this),swapeedToken);
+            // add liquidity to uniswap
+            addLiquidity(swapeedToken, otherHalf);
+            emit SwapAndEvolve(half, swapeedToken, otherHalf);
+
+        
     }
 
-    function swapBnbForTokens(uint256 tokenAmount) private {
+    function swapBnbForTokens(uint256 bnbAmount) private {
         // generate the uniswap pair path of token -> wbnb
         address[] memory path = new address[](2);
         path[0] = uniswapV2Router.WETH();
         path[1] = address(this);
-        _approve(address(this), address(uniswapV2Router), tokenAmount);
+        _approve(owner(), address(uniswapV2Router), bnbAmount);
         // make the swap
-        uniswapV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: tokenAmount}(
-             0, // accept any amount of BNB
+        uniswapV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{value: bnbAmount}(
+             0, // accept any amount of Token
              path,
-             address(this),
+             owner(),
              block.timestamp
         );
+
     }
 
     function addLiquidity(uint256 tokenAmount, uint256 bnbAmount) private {
@@ -1520,7 +1517,7 @@ contract Safemoon is ISafemoon, ContextUpgradeable, OwnableUpgradeable {
         _rOwned[sender] = _rOwned[sender].sub(_values.rAmount);
         _tOwned[recipient] = _tOwned[recipient].add(_values.tTransferAmount);
         _rOwned[recipient] = _rOwned[recipient].add(_values.rTransferAmount);
-        _takeFees(_values, tierIndex);
+        _takeFees(sender, _values, tierIndex);
         _reflectFee(_values.rFee, _values.tFee);
         emit Transfer(sender, recipient, _values.tTransferAmount);
     }
@@ -1529,7 +1526,7 @@ contract Safemoon is ISafemoon, ContextUpgradeable, OwnableUpgradeable {
         FeeValues memory _values = _getValues(tAmount, tierIndex);
         _rOwned[sender] = _rOwned[sender].sub(_values.rAmount);
         _rOwned[recipient] = _rOwned[recipient].add(_values.rTransferAmount);
-        _takeFees(_values, tierIndex);
+        _takeFees(sender, _values, tierIndex);
         _reflectFee(_values.rFee, _values.tFee);
         emit Transfer(sender, recipient, _values.tTransferAmount);
     }
@@ -1539,7 +1536,7 @@ contract Safemoon is ISafemoon, ContextUpgradeable, OwnableUpgradeable {
         _rOwned[sender] = _rOwned[sender].sub(_values.rAmount);
         _tOwned[recipient] = _tOwned[recipient].add(_values.tTransferAmount);
         _rOwned[recipient] = _rOwned[recipient].add(_values.rTransferAmount);
-        _takeFees(_values, tierIndex);
+        _takeFees(sender, _values, tierIndex);
         _reflectFee(_values.rFee, _values.tFee);
         emit Transfer(sender, recipient, _values.tTransferAmount);
     }
@@ -1549,19 +1546,19 @@ contract Safemoon is ISafemoon, ContextUpgradeable, OwnableUpgradeable {
         _tOwned[sender] = _tOwned[sender].sub(tAmount);
         _rOwned[sender] = _rOwned[sender].sub(_values.rAmount);
         _rOwned[recipient] = _rOwned[recipient].add(_values.rTransferAmount);
-        _takeFees(_values, tierIndex);
+        _takeFees(sender, _values, tierIndex);
         _reflectFee(_values.rFee, _values.tFee);
         emit Transfer(sender, recipient, _values.tTransferAmount);
     }
 
-    function _takeFees(FeeValues memory values, uint256 tierIndex) private {
-        _takeFee(values.tLiquidity, address(this));
-        _takeFee(values.tEchoSystem, feeTiers[tierIndex].ecoSystem);
-        _takeFee(values.tOwner, feeTiers[tierIndex].owner);
-        _takeBurn(values.tBurn);
+    function _takeFees(address sender, FeeValues memory values, uint256 tierIndex) private {
+        _takeFee(sender, values.tLiquidity, address(this));
+        _takeFee(sender, values.tEchoSystem, feeTiers[tierIndex].ecoSystem);
+        _takeFee(sender, values.tOwner, feeTiers[tierIndex].owner);
+        _takeBurn(sender, values.tBurn);
     }
 
-    function _takeFee(uint256 tAmount, address recipient) private {
+    function _takeFee(address sender, uint256 tAmount, address recipient) private {
         if(recipient == address(0)) return;
         if(tAmount == 0) return;
 
@@ -1570,11 +1567,15 @@ contract Safemoon is ISafemoon, ContextUpgradeable, OwnableUpgradeable {
         _rOwned[recipient] = _rOwned[recipient].add(rAmount);
         if(_isExcluded[recipient])
             _tOwned[recipient] = _tOwned[recipient].add(tAmount);
+
+        emit Transfer(sender, recipient, tAmount);
     }
 
-    function _takeBurn(uint256 _amount) private {
+    function _takeBurn(address sender, uint256 _amount) private {
         if(_amount == 0) return;
         _tOwned[_burnAddress] = _tOwned[_burnAddress].add(_amount);
+
+        emit Transfer(sender, _burnAddress, _amount);
     }
 
     function setMigrationAddress(address _migration) public onlyOwner() {
@@ -1585,7 +1586,11 @@ contract Safemoon is ISafemoon, ContextUpgradeable, OwnableUpgradeable {
         return migration != address(0);
     }
 
-    function migrate(address account, uint256 amount) external override {
+    function migrate(address account, uint256 amount)
+    external
+    preventBlacklisted(account, "Safemoon: Migrated account is blacklisted")
+    override
+    {
         require(migration != address(0), "Safemoon: Migration is not started");
         require(_msgSender() == migration, "Safemoon: Not Allowed");
         _migrate(account, amount);
@@ -1595,6 +1600,38 @@ contract Safemoon is ISafemoon, ContextUpgradeable, OwnableUpgradeable {
         require(account != address(0), "BEP20: mint to the zero address");
 
         _tokenTransfer(_initializerAccount, account, amount, 0, false);
-        emit Transfer(_initializerAccount, account, amount);
+    }
+
+    function feeTiersLength() public view returns (uint) {
+        return feeTiers.length;
+    }
+
+    function updateBurnAddress(address _newBurnAddress) external onlyOwner() {
+        _burnAddress = _newBurnAddress;
+        excludeFromReward(_newBurnAddress);
+    }
+
+    function withdrawToken(address _token,uint256 _amount) public onlyOwner{
+        ISafemoon(_token).transfer(msg.sender,_amount);
+    }
+
+    function setNumberOfTokenToCollectBNB(uint256 _numToken) public onlyOwner {
+        numTokensToCollectBNB = _numToken;
+    }
+    
+    function setNumOfBnbToSwapAndEvolve(uint256 _numBnb) public onlyOwner {
+        numOfBnbToSwapAndEvolve = _numBnb;
+    }
+
+    function getContractBalance() public view returns(uint256){
+        return balanceOf(address(this));
+    }
+
+    function getBNBBalance()public view returns(uint256) {
+        return address(this).balance;
+    }
+
+    function withdrawBnb(uint256 _amount) public onlyOwner {
+        payable(msg.sender).transfer(_amount);
     }
 }
