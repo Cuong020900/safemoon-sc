@@ -1,3 +1,7 @@
+/**
+ *Submitted for verification at BscScan.com on 2022-05-29
+*/
+
 pragma solidity ^0.6.12;
 pragma experimental ABIEncoderV2;
 
@@ -893,6 +897,9 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
     bool inSwapAndEvolve;
     bool public swapAndEvolveEnabled;
 
+    uint256 private rSupply;
+    uint256 private tSupply;
+
     event SwapAndEvolveEnabledUpdated(bool enabled);
     event SwapAndEvolve(
         uint256 bnbSwapped,
@@ -1035,6 +1042,14 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
         }
         _isExcluded[account] = true;
         _excluded.push(account);
+
+        rSupply = _rTotal;
+        tSupply = _tTotal;
+
+        for (uint256 i = 0; i < _excluded.length; i++) {
+             rSupply = rSupply.sub(_rOwned[_excluded[i]]);
+             tSupply = tSupply.sub(_tOwned[_excluded[i]]);
+        }
     }
 
     function includeInReward(address account) external onlyOwner() {
@@ -1291,12 +1306,9 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
     }
 
     function _getCurrentSupply() private view returns(uint256, uint256) {
-        uint256 rSupply = _rTotal;
-        uint256 tSupply = _tTotal;
+
         for (uint256 i = 0; i < _excluded.length; i++) {
             if (_rOwned[_excluded[i]] > rSupply || _tOwned[_excluded[i]] > tSupply) return (_rTotal, _tTotal);
-            rSupply = rSupply.sub(_rOwned[_excluded[i]]);
-            tSupply = tSupply.sub(_tOwned[_excluded[i]]);
         }
         if (rSupply < _rTotal.div(_tTotal)) return (_rTotal, _tTotal);
         return (rSupply, tSupply);
