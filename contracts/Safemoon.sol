@@ -1301,8 +1301,8 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
     }
 
     function _getRate() private view returns(uint256) {
-        (uint256 rSupply, uint256 tSupply) = _getCurrentSupply();
-        return rSupply.div(tSupply);
+        (uint256 rSupplya, uint256 tSupplya) = _getCurrentSupply();
+        return rSupplya.div(tSupplya);
     }
 
     function _getCurrentSupply() private view returns(uint256, uint256) {
