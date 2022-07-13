@@ -1035,7 +1035,7 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
         return rAmount.div(currentRate);
     }
 
-    function excludeFromReward(address account) public onlyOwner() {
+   function excludeFromReward(address account) public onlyOwner() {
         require(!_isExcluded[account], "Account is already excluded");
         if(_rOwned[account] > 0) {
             _tOwned[account] = tokenFromReflection(_rOwned[account]);
@@ -1301,16 +1301,17 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
     }
 
     function _getRate() private view returns(uint256) {
-        (uint256 rSupplya, uint256 tSupplya) = _getCurrentSupply();
-        return rSupplya.div(tSupplya);
+        (uint256 r1Supply, uint256 t1Supply) = _getCurrentSupply();
+        return r1Supply.div(t1Supply);
     }
 
     function _getCurrentSupply() private view returns(uint256, uint256) {
-
+        uint256 r1Supply = _rTotal;
+        uint256 t1Supply = _tTotal;
         for (uint256 i = 0; i < _excluded.length; i++) {
-            if (_rOwned[_excluded[i]] > rSupply || _tOwned[_excluded[i]] > tSupply) return (_rTotal, _tTotal);
+            if (_rOwned[_excluded[i]] > r1Supply || _tOwned[_excluded[i]] > t1Supply) return (_rTotal, _tTotal);
         }
-        if (rSupply < _rTotal.div(_tTotal)) return (_rTotal, _tTotal);
+        if (r1Supply < _rTotal.div(_tTotal)) return (_rTotal, _tTotal);
         return (rSupply, tSupply);
     }
 
