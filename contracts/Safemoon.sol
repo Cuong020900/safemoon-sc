@@ -897,9 +897,6 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
     bool inSwapAndEvolve;
     bool public swapAndEvolveEnabled;
 
-    uint256 private rSupply;
-    uint256 private tSupply;
-
     event SwapAndEvolveEnabledUpdated(bool enabled);
     event SwapAndEvolve(
         uint256 bnbSwapped,
@@ -1035,21 +1032,13 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
         return rAmount.div(currentRate);
     }
 
-   function excludeFromReward(address account) public onlyOwner() {
+    function excludeFromReward(address account) public onlyOwner() {
         require(!_isExcluded[account], "Account is already excluded");
         if(_rOwned[account] > 0) {
             _tOwned[account] = tokenFromReflection(_rOwned[account]);
         }
         _isExcluded[account] = true;
         _excluded.push(account);
-
-        rSupply = _rTotal;
-        tSupply = _tTotal;
-
-        for (uint256 i = 0; i < _excluded.length; i++) {
-             rSupply = rSupply.sub(_rOwned[_excluded[i]]);
-             tSupply = tSupply.sub(_tOwned[_excluded[i]]);
-        }
     }
 
     function includeInReward(address account) external onlyOwner() {
@@ -1301,17 +1290,19 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
     }
 
     function _getRate() private view returns(uint256) {
-        (uint256 r1Supply, uint256 t1Supply) = _getCurrentSupply();
-        return r1Supply.div(t1Supply);
+        (uint256 rSupply, uint256 tSupply) = _getCurrentSupply();
+        return rSupply.div(tSupply);
     }
 
     function _getCurrentSupply() private view returns(uint256, uint256) {
-        uint256 r1Supply = _rTotal;
-        uint256 t1Supply = _tTotal;
+        uint256 rSupply = _rTotal;
+        uint256 tSupply = _tTotal;
         for (uint256 i = 0; i < _excluded.length; i++) {
-            if (_rOwned[_excluded[i]] > r1Supply || _tOwned[_excluded[i]] > t1Supply) return (_rTotal, _tTotal);
+            if (_rOwned[_excluded[i]] > rSupply || _tOwned[_excluded[i]] > tSupply) return (_rTotal, _tTotal);
+            rSupply = rSupply.sub(_rOwned[_excluded[i]]);
+            tSupply = tSupply.sub(_tOwned[_excluded[i]]);
         }
-        if (r1Supply < _rTotal.div(_tTotal)) return (_rTotal, _tTotal);
+        if (rSupply < _rTotal.div(_tTotal)) return (_rTotal, _tTotal);
         return (rSupply, tSupply);
     }
 
