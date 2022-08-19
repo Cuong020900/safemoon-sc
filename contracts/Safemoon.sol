@@ -358,7 +358,7 @@ contract Safemoon is
             if (_excluded[i] == account) {
                 _excluded[i] = _excluded[_excluded.length - 1];
                 _tTotalExcluded = _tTotalExcluded.sub(_tOwned[account]);
-                _rTotalExcluded = _rTotalExcluded.add(_rOwned[account]);
+                _rTotalExcluded = _rTotalExcluded.sub(_rOwned[account]);
                 _tOwned[account] = 0;
                 _isExcluded[account] = false;
                 _excluded.pop();
