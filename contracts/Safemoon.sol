@@ -897,6 +897,9 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
     bool inSwapAndEvolve;
     bool public swapAndEvolveEnabled;
 
+    uint256 private _rTotalExcluded;
+    uint256 private _tTotalExcluded;
+
     event SwapAndEvolveEnabledUpdated(bool enabled);
     event SwapAndEvolve(
         uint256 bnbSwapped,
@@ -1036,7 +1039,10 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
         require(!_isExcluded[account], "Account is already excluded");
         if(_rOwned[account] > 0) {
             _tOwned[account] = tokenFromReflection(_rOwned[account]);
+            _tTotalExcluded = _tTotalExcluded.add(_tOwned[account]);
+            _rTotalExcluded = _rTotalExcluded.add(_rOwned[account]);
         }
+
         _isExcluded[account] = true;
         _excluded.push(account);
     }
@@ -1046,6 +1052,8 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
         for (uint256 i = 0; i < _excluded.length; i++) {
             if (_excluded[i] == account) {
                 _excluded[i] = _excluded[_excluded.length - 1];
+                _tTotalExcluded = _tTotalExcluded.sub(_tOwned[account]);
+                _rTotalExcluded = _rTotalExcluded.add(_rOwned[account]);
                 _tOwned[account] = 0;
                 _isExcluded[account] = false;
                 _excluded.pop();
@@ -1295,14 +1303,14 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
     }
 
     function _getCurrentSupply() private view returns(uint256, uint256) {
-        uint256 rSupply = _rTotal;
-        uint256 tSupply = _tTotal;
-        for (uint256 i = 0; i < _excluded.length; i++) {
-            if (_rOwned[_excluded[i]] > rSupply || _tOwned[_excluded[i]] > tSupply) return (_rTotal, _tTotal);
-            rSupply = rSupply.sub(_rOwned[_excluded[i]]);
-            tSupply = tSupply.sub(_tOwned[_excluded[i]]);
+        if (_rTotalExcluded > _rTotal || _tTotalExcluded > _tTotal) {
+            return (_rTotal, _tTotal);
         }
+        uint256 rSupply = _rTotal.sub(_rTotalExcluded);
+        uint256 tSupply = _tTotal.sub(_tTotalExcluded);
+        
         if (rSupply < _rTotal.div(_tTotal)) return (_rTotal, _tTotal);
+
         return (rSupply, tSupply);
     }
 
@@ -1499,18 +1507,17 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
         if(!takeFee)
             removeAllFee();
 
-        if (_isExcluded[sender] && !_isExcluded[recipient]) {
+        if (!_isExcluded[sender] && !_isExcluded[recipient]) {
+            _transferStandard(sender, recipient, amount, tierIndex);
+        }
+        else if (_isExcluded[sender] && !_isExcluded[recipient]) {
             _transferFromExcluded(sender, recipient, amount, tierIndex);
         } else if (!_isExcluded[sender] && _isExcluded[recipient]) {
             _transferToExcluded(sender, recipient, amount, tierIndex);
-        } else if (!_isExcluded[sender] && !_isExcluded[recipient]) {
-            _transferStandard(sender, recipient, amount, tierIndex);
         } else if (_isExcluded[sender] && _isExcluded[recipient]) {
             _transferBothExcluded(sender, recipient, amount, tierIndex);
-        } else {
-            _transferStandard(sender, recipient, amount, tierIndex);
         }
-
+        
         if(!takeFee)
             restoreAllFee();
     }
@@ -1521,6 +1528,10 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
         _rOwned[sender] = _rOwned[sender].sub(_values.rAmount);
         _tOwned[recipient] = _tOwned[recipient].add(_values.tTransferAmount);
         _rOwned[recipient] = _rOwned[recipient].add(_values.rTransferAmount);
+
+        _tTotalExcluded = _tTotalExcluded.add(_values.tTransferAmount).sub(tAmount);
+        _rTotalExcluded = _rTotalExcluded.add(_values.rTransferAmount).sub(_values.rAmount);
+
         _takeFees(sender, _values, tierIndex);
         _reflectFee(_values.rFee, _values.tFee);
         emit Transfer(sender, recipient, _values.tTransferAmount);
@@ -1540,6 +1551,10 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
         _rOwned[sender] = _rOwned[sender].sub(_values.rAmount);
         _tOwned[recipient] = _tOwned[recipient].add(_values.tTransferAmount);
         _rOwned[recipient] = _rOwned[recipient].add(_values.rTransferAmount);
+
+        _tTotalExcluded = _tTotalExcluded.add(_values.tTransferAmount);
+        _rTotalExcluded = _rTotalExcluded.add(_values.rTransferAmount);
+
         _takeFees(sender, _values, tierIndex);
         _reflectFee(_values.rFee, _values.tFee);
         emit Transfer(sender, recipient, _values.tTransferAmount);
@@ -1550,6 +1565,9 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
         _tOwned[sender] = _tOwned[sender].sub(tAmount);
         _rOwned[sender] = _rOwned[sender].sub(_values.rAmount);
         _rOwned[recipient] = _rOwned[recipient].add(_values.rTransferAmount);
+        _tTotalExcluded = _tTotalExcluded.sub(tAmount);
+        _rTotalExcluded = _rTotalExcluded.sub(_values.rAmount);
+        
         _takeFees(sender, _values, tierIndex);
         _reflectFee(_values.rFee, _values.tFee);
         emit Transfer(sender, recipient, _values.tTransferAmount);
@@ -1563,14 +1581,18 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
     }
 
     function _takeFee(address sender, uint256 tAmount, address recipient) private {
-        if(recipient == address(0)) return;
-        if(tAmount == 0) return;
+        if (recipient == address(0)) return;
+        if (tAmount == 0) return;
 
         uint256 currentRate = _getRate();
         uint256 rAmount = tAmount.mul(currentRate);
         _rOwned[recipient] = _rOwned[recipient].add(rAmount);
-        if(_isExcluded[recipient])
+
+        if (_isExcluded[recipient]) {
             _tOwned[recipient] = _tOwned[recipient].add(tAmount);
+            _tTotalExcluded = _tTotalExcluded.add(tAmount);
+            _rTotalExcluded = _rTotalExcluded.add(rAmount);
+        }
 
         emit Transfer(sender, recipient, tAmount);
     }
@@ -1578,6 +1600,9 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
     function _takeBurn(address sender, uint256 _amount) private {
         if(_amount == 0) return;
         _tOwned[_burnAddress] = _tOwned[_burnAddress].add(_amount);
+        if (_isExcluded[_burnAddress]) {
+            _tTotalExcluded = _tTotalExcluded.add(_amount);
+        }
 
         emit Transfer(sender, _burnAddress, _amount);
     }
