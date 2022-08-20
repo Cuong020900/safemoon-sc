@@ -1,5 +1,3 @@
-import { ethers } from "ethers";
-
 export const beautifyObject = (obj: any): any => {
   const cloneObj = { ...obj };
 
@@ -9,5 +7,3 @@ export const beautifyObject = (obj: any): any => {
 
   return obj;
 };
-
-const ether = ethers.utils.parseEther;
