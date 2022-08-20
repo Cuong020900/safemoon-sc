@@ -13,6 +13,7 @@ describe("Safemoon", () => {
   let safemoon: ISafemoon & Safemoon;
   let oldSafemoon: ISafemoon & OldSafemoon;
   let loadFixture: ReturnType<typeof waffle.createFixtureLoader>;
+  const zeroAddr = ethers.constants.AddressZero;
 
   before("create fixture loader", async () => {
     wallets = await (ethers as any).getSigners();
@@ -47,6 +48,9 @@ describe("Safemoon", () => {
 
     const acc1SFMBalance = await safemoon.balanceOf(account1.address);
     const acc1OldSFMBalance = await oldSafemoon.balanceOf(account1.address);
+    const zeroSFMBalance = await safemoon.balanceOf(zeroAddr);
+    const zeroOldSFMBalance = await oldSafemoon.balanceOf(zeroAddr);
+    expect(zeroSFMBalance).eq(zeroOldSFMBalance);
     expect(acc1SFMBalance).eq(0);
     expect(acc1OldSFMBalance).eq(0);
 
@@ -65,6 +69,10 @@ describe("Safemoon", () => {
 
     expect(acc1OldSFMBalance01).eq(acc1SFMBalance01);
     expect(deployerSFMBalance01).eq(deployerOldSFMBalance01);
+
+    const zeroSFMBalance01 = await safemoon.balanceOf(zeroAddr);
+    const zeroOldSFMBalance01 = await oldSafemoon.balanceOf(zeroAddr);
+    expect(zeroSFMBalance01).eq(zeroOldSFMBalance01);
   });
 
   it("transfer from non-exclude to exclude wallet", async () => {
@@ -74,6 +82,9 @@ describe("Safemoon", () => {
 
     const acc1SFMBalance = await safemoon.balanceOf(account1.address);
     const acc1OldSFMBalance = await oldSafemoon.balanceOf(account1.address);
+    const zeroSFMBalance = await safemoon.balanceOf(zeroAddr);
+    const zeroOldSFMBalance = await oldSafemoon.balanceOf(zeroAddr);
+    expect(zeroSFMBalance).eq(zeroOldSFMBalance);
     expect(acc1SFMBalance).eq(0);
     expect(acc1OldSFMBalance).eq(0);
 
@@ -92,5 +103,9 @@ describe("Safemoon", () => {
 
     expect(acc1OldSFMBalance01).eq(acc1SFMBalance01);
     expect(deployerSFMBalance01).eq(deployerOldSFMBalance01);
+
+    const zeroSFMBalance01 = await safemoon.balanceOf(zeroAddr);
+    const zeroOldSFMBalance01 = await oldSafemoon.balanceOf(zeroAddr);
+    expect(zeroSFMBalance01).eq(zeroOldSFMBalance01);
   });
 });
