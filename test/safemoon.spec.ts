@@ -1,7 +1,7 @@
 import { Wallet } from "ethers";
 import { ethers, waffle } from "hardhat";
 import { fixture } from "./utils/fixture";
-import { Safemoon } from "../typechain";
+import { OldSafemoon, Safemoon } from "../typechain";
 import { beautifyObject } from "./utils/utils";
 import { expect } from "chai";
 
@@ -10,6 +10,7 @@ describe("Payment", () => {
   let deployer: Wallet;
   let account1: Wallet;
   let safemoon: Safemoon;
+  let oldSafemoon: OldSafemoon;
   let loadFixture: ReturnType<typeof waffle.createFixtureLoader>;
 
   before("create fixture loader", async () => {
@@ -20,11 +21,8 @@ describe("Payment", () => {
 
   beforeEach(async () => {
     loadFixture = waffle.createFixtureLoader(wallets as any);
-    ({ safemoon } = await loadFixture(fixture));
+    ({ safemoon, oldSafemoon } = await loadFixture(fixture));
   });
 
-  it("test", async () => {
-    console.log(deployer);
-    console.log(account1);
-  });
+  it("test", async () => {});
 });

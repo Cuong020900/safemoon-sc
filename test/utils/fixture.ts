@@ -1,11 +1,11 @@
 import { deployContract, Fixture } from "ethereum-waffle";
 
 import * as SafemoonJSON from "../../artifacts/contracts/Safemoon.sol/Safemoon.json";
+import * as OldSafemoonJSON from "../../artifacts/contracts/mock/OldSafemoon.sol/OldSafemoon.json";
 import * as FactoryJson from "../../artifacts/contracts/mock/factory/SafeswapFactory.sol/SafeswapFactory.json";
 import * as RouterJson from "../../artifacts/contracts/mock/router/SafeswapRouter.sol/SafeswapRouter.json";
 import * as WETH9Json from "../../artifacts/contracts/mock/router/WETH9.sol/WETH9.json";
-import { Safemoon, SafeswapFactory, SafeswapRouter, WETH9 } from "typechain";
-import { ethers } from "ethers";
+import { OldSafemoon, Safemoon, SafeswapFactory, SafeswapRouter, WETH9 } from "typechain";
 
 interface IFixture {
   safemoon: Safemoon;
@@ -22,9 +22,11 @@ export const fixture: Fixture<IFixture | any> = async ([wallet, account1, , acco
   ])) as unknown as SafeswapRouter;
   await safemoon.initialize(/* router address */ router.address);
 
+  const oldSafemoon = (await deployContract(wallet as any, OldSafemoonJSON)) as unknown as OldSafemoon;
+  await oldSafemoon.initialize(router.address);
+
   return {
     safemoon,
-    account1,
-    account2,
+    oldSafemoon,
   };
 };
