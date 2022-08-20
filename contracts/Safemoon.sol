@@ -7,12 +7,7 @@ pragma experimental ABIEncoderV2;
 
 import "./SafemoonLib.sol";
 
-contract Safemoon is
-    ISafemoon,
-    Initializable,
-    ContextUpgradeable,
-    OwnableUpgradeable
-{
+contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgradeable {
     using SafeMathUpgradeable for uint256;
     using AddressUpgradeable for address;
 
@@ -121,9 +116,7 @@ contract Safemoon is
             if (size > 0) {
                 uint256 senderTier = _accountsTier[_sender];
                 if (senderTier == 0) {
-                    IUniswapV2Router02 _routerCheck = IUniswapV2Router02(
-                        _sender
-                    );
+                    IUniswapV2Router02 _routerCheck = IUniswapV2Router02(_sender);
                     try _routerCheck.factory() returns (address factory) {
                         _accountsTier[_sender] = 1;
                     } catch {}
@@ -144,11 +137,7 @@ contract Safemoon is
     uint256 private _tTotalExcluded;
 
     event SwapAndEvolveEnabledUpdated(bool enabled);
-    event SwapAndEvolve(
-        uint256 bnbSwapped,
-        uint256 tokenReceived,
-        uint256 bnbIntoLiquidity
-    );
+    event SwapAndEvolve(uint256 bnbSwapped, uint256 tokenReceived, uint256 bnbIntoLiquidity);
 
     function initialize(address _router) public initializer {
         __Context_init_unchained();
@@ -156,10 +145,7 @@ contract Safemoon is
         __Safemoon_v2_init_unchained(_router);
     }
 
-    function __Safemoon_v2_init_unchained(address _router)
-        internal
-        initializer
-    {
+    function __Safemoon_v2_init_unchained(address _router) internal initializer {
         _name = "SafeMoon";
         _symbol = "SFM";
         _decimals = 9;
@@ -181,15 +167,12 @@ contract Safemoon is
         uniswapV2Router = IUniswapV2Router02(_router);
         WBNB = uniswapV2Router.WETH();
         // Create a uniswap pair for this new token
-        uniswapV2Pair = IUniswapV2Factory(uniswapV2Router.factory()).createPair(
-                address(this),
-                WBNB
-            );
+        uniswapV2Pair = IUniswapV2Factory(uniswapV2Router.factory()).createPair(address(this), WBNB);
 
         //exclude owner and this contract from fee
         _isExcludedFromFee[owner()] = true;
         _isExcludedFromFee[address(this)] = true;
-
+        //
         __Safemoon_tiers_init();
 
         emit Transfer(address(0), _msgSender(), _tTotal);
@@ -223,29 +206,16 @@ contract Safemoon is
         return tokenFromReflection(_rOwned[account]);
     }
 
-    function transfer(address recipient, uint256 amount)
-        public
-        override
-        returns (bool)
-    {
+    function transfer(address recipient, uint256 amount) public override returns (bool) {
         _transfer(_msgSender(), recipient, amount);
         return true;
     }
 
-    function allowance(address owner, address spender)
-        public
-        view
-        override
-        returns (uint256)
-    {
+    function allowance(address owner, address spender) public view override returns (uint256) {
         return _allowances[owner][spender];
     }
 
-    function approve(address spender, uint256 amount)
-        public
-        override
-        returns (bool)
-    {
+    function approve(address spender, uint256 amount) public override returns (bool) {
         _approve(_msgSender(), spender, amount);
         return true;
     }
@@ -259,39 +229,21 @@ contract Safemoon is
         _approve(
             sender,
             _msgSender(),
-            _allowances[sender][_msgSender()].sub(
-                amount,
-                "BEP20: transfer amount exceeds allowance"
-            )
+            _allowances[sender][_msgSender()].sub(amount, "BEP20: transfer amount exceeds allowance")
         );
         return true;
     }
 
-    function increaseAllowance(address spender, uint256 addedValue)
-        public
-        virtual
-        returns (bool)
-    {
-        _approve(
-            _msgSender(),
-            spender,
-            _allowances[_msgSender()][spender].add(addedValue)
-        );
+    function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
+        _approve(_msgSender(), spender, _allowances[_msgSender()][spender].add(addedValue));
         return true;
     }
 
-    function decreaseAllowance(address spender, uint256 subtractedValue)
-        public
-        virtual
-        returns (bool)
-    {
+    function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
         _approve(
             _msgSender(),
             spender,
-            _allowances[_msgSender()][spender].sub(
-                subtractedValue,
-                "BEP20: decreased allowance below zero"
-            )
+            _allowances[_msgSender()][spender].sub(subtractedValue, "BEP20: decreased allowance below zero")
         );
         return true;
     }
@@ -319,29 +271,18 @@ contract Safemoon is
         }
     }
 
-    function reflectionFromToken(uint256 tAmount, bool deductTransferFee)
-        public
-        view
-        returns (uint256)
-    {
+    function reflectionFromToken(uint256 tAmount, bool deductTransferFee) public view returns (uint256) {
         return reflectionFromTokenInTiers(tAmount, 0, deductTransferFee);
     }
 
-    function tokenFromReflection(uint256 rAmount)
-        public
-        view
-        returns (uint256)
-    {
-        require(
-            rAmount <= _rTotal,
-            "Amount must be less than total reflections"
-        );
+    function tokenFromReflection(uint256 rAmount) public view returns (uint256) {
+        require(rAmount <= _rTotal, "Amount must be less than total reflections");
         uint256 currentRate = _getRate();
         return rAmount.div(currentRate);
     }
 
     function excludeFromReward(address account) public onlyOwner {
-        require(!_isExcluded[account], "Account is already excluded");
+        //        require(!_isExcluded[account], "Account is already excluded");
         if (_rOwned[account] > 0) {
             _tOwned[account] = tokenFromReflection(_rOwned[account]);
             _tTotalExcluded = _tTotalExcluded.add(_tOwned[account]);
@@ -379,10 +320,7 @@ contract Safemoon is
         public
         onlyOwner
         checkTierIndex(_tierIndex)
-        preventBlacklisted(
-            _account,
-            "Safemoon: Selected account is in blacklist"
-        )
+        preventBlacklisted(_account, "Safemoon: Selected account is in blacklist")
     {
         require(_account != address(0), "Safemoon: Invalid address");
         _accountsTier[_account] = _tierIndex;
@@ -390,18 +328,11 @@ contract Safemoon is
 
     function excludeWhitelistedAddress(address _account) public onlyOwner {
         require(_account != address(0), "Safemoon: Invalid address");
-        require(
-            _accountsTier[_account] > 0,
-            "Safemoon: Account is not in whitelist"
-        );
+        require(_accountsTier[_account] > 0, "Safemoon: Account is not in whitelist");
         _accountsTier[_account] = 0;
     }
 
-    function accountTier(address _account)
-        public
-        view
-        returns (FeeTier memory)
-    {
+    function accountTier(address _account) public view returns (FeeTier memory) {
         return feeTiers[_accountsTier[_account]];
     }
 
@@ -409,17 +340,10 @@ contract Safemoon is
         return _accountsTier[_account] > 0;
     }
 
-    function checkFees(FeeTier memory _tier)
-        internal
-        view
-        returns (FeeTier memory)
-    {
-        uint256 _fees = _tier
-            .ecoSystemFee
-            .add(_tier.liquidityFee)
-            .add(_tier.taxFee)
-            .add(_tier.ownerFee)
-            .add(_tier.burnFee);
+    function checkFees(FeeTier memory _tier) internal view returns (FeeTier memory) {
+        uint256 _fees = _tier.ecoSystemFee.add(_tier.liquidityFee).add(_tier.taxFee).add(_tier.ownerFee).add(
+            _tier.burnFee
+        );
         require(_fees <= _maxFee, "Safemoon: Fees exceeded max limitation");
 
         return _tier;
@@ -468,11 +392,7 @@ contract Safemoon is
         }
     }
 
-    function setTaxFeePercent(uint256 _tierIndex, uint256 _taxFee)
-        external
-        onlyOwner
-        checkTierIndex(_tierIndex)
-    {
+    function setTaxFeePercent(uint256 _tierIndex, uint256 _taxFee) external onlyOwner checkTierIndex(_tierIndex) {
         FeeTier memory tier = feeTiers[_tierIndex];
         checkFeesChanged(tier, tier.taxFee, _taxFee);
         feeTiers[_tierIndex].taxFee = _taxFee;
@@ -481,11 +401,7 @@ contract Safemoon is
         }
     }
 
-    function setOwnerFeePercent(uint256 _tierIndex, uint256 _ownerFee)
-        external
-        onlyOwner
-        checkTierIndex(_tierIndex)
-    {
+    function setOwnerFeePercent(uint256 _tierIndex, uint256 _ownerFee) external onlyOwner checkTierIndex(_tierIndex) {
         FeeTier memory tier = feeTiers[_tierIndex];
         checkFeesChanged(tier, tier.ownerFee, _ownerFee);
         feeTiers[_tierIndex].ownerFee = _ownerFee;
@@ -494,11 +410,7 @@ contract Safemoon is
         }
     }
 
-    function setBurnFeePercent(uint256 _tierIndex, uint256 _burnFee)
-        external
-        onlyOwner
-        checkTierIndex(_tierIndex)
-    {
+    function setBurnFeePercent(uint256 _tierIndex, uint256 _burnFee) external onlyOwner checkTierIndex(_tierIndex) {
         FeeTier memory tier = feeTiers[_tierIndex];
         checkFeesChanged(tier, tier.burnFee, _burnFee);
         feeTiers[_tierIndex].burnFee = _burnFee;
@@ -512,10 +424,7 @@ contract Safemoon is
         onlyOwner
         checkTierIndex(_tierIndex)
     {
-        require(
-            _ecoSystem != address(0),
-            "Safemoon: Address Zero is not allowed"
-        );
+        require(_ecoSystem != address(0), "Safemoon: Address Zero is not allowed");
         excludeFromReward(_ecoSystem);
         feeTiers[_tierIndex].ecoSystem = _ecoSystem;
         if (_tierIndex == 0) {
@@ -523,11 +432,7 @@ contract Safemoon is
         }
     }
 
-    function setOwnerFeeAddress(uint256 _tierIndex, address _owner)
-        external
-        onlyOwner
-        checkTierIndex(_tierIndex)
-    {
+    function setOwnerFeeAddress(uint256 _tierIndex, address _owner) external onlyOwner checkTierIndex(_tierIndex) {
         require(_owner != address(0), "Safemoon: Address Zero is not allowed");
         excludeFromReward(_owner);
         feeTiers[_tierIndex].owner = _owner;
@@ -545,15 +450,7 @@ contract Safemoon is
         address _ecoSystem,
         address _owner
     ) public onlyOwner {
-        _addTier(
-            _ecoSystemFee,
-            _liquidityFee,
-            _taxFee,
-            _ownerFee,
-            _burnFee,
-            _ecoSystem,
-            _owner
-        );
+        _addTier(_ecoSystemFee, _liquidityFee, _taxFee, _ownerFee, _burnFee, _ecoSystem, _owner);
     }
 
     function _addTier(
@@ -566,15 +463,7 @@ contract Safemoon is
         address _owner
     ) internal returns (FeeTier memory) {
         FeeTier memory _newTier = checkFees(
-            FeeTier(
-                _ecoSystemFee,
-                _liquidityFee,
-                _taxFee,
-                _ownerFee,
-                _burnFee,
-                _ecoSystem,
-                _owner
-            )
+            FeeTier(_ecoSystemFee, _liquidityFee, _taxFee, _ownerFee, _burnFee, _ecoSystem, _owner)
         );
         excludeFromReward(_ecoSystem);
         excludeFromReward(_owner);
@@ -583,12 +472,7 @@ contract Safemoon is
         return _newTier;
     }
 
-    function feeTier(uint256 _tierIndex)
-        public
-        view
-        checkTierIndex(_tierIndex)
-        returns (FeeTier memory)
-    {
+    function feeTier(uint256 _tierIndex) public view checkTierIndex(_tierIndex) returns (FeeTier memory) {
         return feeTiers[_tierIndex];
     }
 
@@ -601,10 +485,7 @@ contract Safemoon is
         _isBlacklisted[account] = false;
     }
 
-    function updateRouterAndPair(
-        address _uniswapV2Router,
-        address _uniswapV2Pair
-    ) public onlyOwner {
+    function updateRouterAndPair(address _uniswapV2Router, address _uniswapV2Pair) public onlyOwner {
         uniswapV2Router = IUniswapV2Router02(_uniswapV2Router);
         uniswapV2Pair = _uniswapV2Pair;
         WBNB = uniswapV2Router.WETH();
@@ -632,17 +513,9 @@ contract Safemoon is
         _tFeeTotal = _tFeeTotal.add(tFee);
     }
 
-    function _getValues(uint256 tAmount, uint256 _tierIndex)
-        private
-        view
-        returns (FeeValues memory)
-    {
+    function _getValues(uint256 tAmount, uint256 _tierIndex) private view returns (FeeValues memory) {
         tFeeValues memory tValues = _getTValues(tAmount, _tierIndex);
-        uint256 tTransferFee = tValues
-            .tLiquidity
-            .add(tValues.tEchoSystem)
-            .add(tValues.tOwner)
-            .add(tValues.tBurn);
+        uint256 tTransferFee = tValues.tLiquidity.add(tValues.tEchoSystem).add(tValues.tOwner).add(tValues.tBurn);
         (uint256 rAmount, uint256 rTransferAmount, uint256 rFee) = _getRValues(
             tAmount,
             tValues.tFee,
@@ -663,11 +536,7 @@ contract Safemoon is
             );
     }
 
-    function _getTValues(uint256 tAmount, uint256 _tierIndex)
-        private
-        view
-        returns (tFeeValues memory)
-    {
+    function _getTValues(uint256 tAmount, uint256 _tierIndex) private view returns (tFeeValues memory) {
         FeeTier memory tier = feeTiers[_tierIndex];
         tFeeValues memory tValues = tFeeValues(
             0,
@@ -725,11 +594,7 @@ contract Safemoon is
         return (rSupply, tSupply);
     }
 
-    function calculateFee(uint256 _amount, uint256 _fee)
-        private
-        pure
-        returns (uint256)
-    {
+    function calculateFee(uint256 _amount, uint256 _fee) private pure returns (uint256) {
         if (_fee == 0) return 0;
         return _amount.mul(_fee).div(10**4);
     }
@@ -783,10 +648,7 @@ contract Safemoon is
         require(amount > 0, "Transfer amount must be greater than zero");
 
         if (from != owner() && to != owner())
-            require(
-                amount <= _maxTxAmount,
-                "Transfer amount exceeds the maxTxAmount."
-            );
+            require(amount <= _maxTxAmount, "Transfer amount exceeds the maxTxAmount.");
 
         // is the token balance of this contract address over the min number of
         // tokens that we need to initiate a swap + liquidity lock?
@@ -798,14 +660,8 @@ contract Safemoon is
             contractTokenBalance = _maxTxAmount;
         }
 
-        bool overMinTokenBalance = contractTokenBalance >=
-            numTokensToCollectBNB;
-        if (
-            overMinTokenBalance &&
-            !inSwapAndLiquify &&
-            from != uniswapV2Pair &&
-            swapAndEvolveEnabled
-        ) {
+        bool overMinTokenBalance = contractTokenBalance >= numTokensToCollectBNB;
+        if (overMinTokenBalance && !inSwapAndLiquify && from != uniswapV2Pair && swapAndEvolveEnabled) {
             contractTokenBalance = numTokensToCollectBNB;
             collectBNB(contractTokenBalance);
         }
@@ -857,10 +713,7 @@ contract Safemoon is
     function swapAndEvolve() public onlyOwner lockTheSwap {
         // split the contract balance into halves
         uint256 contractBnbBalance = address(this).balance;
-        require(
-            contractBnbBalance >= numOfBnbToSwapAndEvolve,
-            "BNB balance is not reach for S&E Threshold"
-        );
+        require(contractBnbBalance >= numOfBnbToSwapAndEvolve, "BNB balance is not reach for S&E Threshold");
 
         contractBnbBalance = numOfBnbToSwapAndEvolve;
 
@@ -880,11 +733,7 @@ contract Safemoon is
         uint256 swapeedToken = newBalance.sub(initialBalance);
 
         _approve(msg.sender, address(this), swapeedToken);
-        ISafemoon(address(this)).transferFrom(
-            msg.sender,
-            address(this),
-            swapeedToken
-        );
+        ISafemoon(address(this)).transferFrom(msg.sender, address(this), swapeedToken);
         // add liquidity to uniswap
         addLiquidity(swapeedToken, otherHalf);
         emit SwapAndEvolve(half, swapeedToken, otherHalf);
@@ -897,9 +746,7 @@ contract Safemoon is
         path[1] = address(this);
         _approve(owner(), address(uniswapV2Router), bnbAmount);
         // make the swap
-        uniswapV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{
-            value: bnbAmount
-        }(
+        uniswapV2Router.swapExactETHForTokensSupportingFeeOnTransferTokens{ value: bnbAmount }(
             0, // accept any amount of Token
             path,
             owner(),
@@ -912,7 +759,7 @@ contract Safemoon is
         _approve(address(this), address(uniswapV2Router), tokenAmount);
 
         // add the liquidity
-        uniswapV2Router.addLiquidityETH{value: bnbAmount}(
+        uniswapV2Router.addLiquidityETH{ value: bnbAmount }(
             address(this),
             tokenAmount,
             0, // slippage is unavoidable
@@ -957,12 +804,8 @@ contract Safemoon is
         _tOwned[recipient] = _tOwned[recipient].add(_values.tTransferAmount);
         _rOwned[recipient] = _rOwned[recipient].add(_values.rTransferAmount);
 
-        _tTotalExcluded = _tTotalExcluded.add(_values.tTransferAmount).sub(
-            tAmount
-        );
-        _rTotalExcluded = _rTotalExcluded.add(_values.rTransferAmount).sub(
-            _values.rAmount
-        );
+        _tTotalExcluded = _tTotalExcluded.add(_values.tTransferAmount).sub(tAmount);
+        _rTotalExcluded = _rTotalExcluded.add(_values.rTransferAmount).sub(_values.rAmount);
 
         _takeFees(sender, _values, tierIndex);
         _reflectFee(_values.rFee, _values.tFee);

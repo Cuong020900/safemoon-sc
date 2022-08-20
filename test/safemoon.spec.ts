@@ -1,8 +1,7 @@
 import { Wallet } from "ethers";
 import { ethers, waffle } from "hardhat";
-import { decimals, fixture, price, requireStakeAmount } from "./utils/fixture";
-import { MockOracle, Payment, Safemoon } from "../typechain";
-import { XCN } from "../typechain/XCN";
+import { fixture } from "./utils/fixture";
+import { Safemoon } from "../typechain";
 import { beautifyObject } from "./utils/utils";
 import { expect } from "chai";
 
@@ -24,5 +23,8 @@ describe("Payment", () => {
     ({ safemoon } = await loadFixture(fixture));
   });
 
-  it("test", async () => {});
+  it("test", async () => {
+    console.log(deployer);
+    console.log(account1);
+  });
 });
