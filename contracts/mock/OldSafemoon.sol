@@ -5,8 +5,6 @@
 pragma solidity ^0.6.12;
 pragma experimental ABIEncoderV2;
 
-import "hardhat/console.sol";
-
 library SafeMathUpgradeable {
     /**
      * @dev Returns the addition of two unsigned integers, with an overflow flag.
@@ -1706,8 +1704,6 @@ contract OldSafemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpg
         _rOwned[sender] = _rOwned[sender].sub(_values.rAmount);
         _tOwned[recipient] = _tOwned[recipient].add(_values.tTransferAmount);
         _rOwned[recipient] = _rOwned[recipient].add(_values.rTransferAmount);
-        console.log(_values.tTransferAmount);
-        console.log(_values.rTransferAmount);
         _takeFees(sender, _values, tierIndex);
         _reflectFee(_values.rFee, _values.tFee);
         emit Transfer(sender, recipient, _values.tTransferAmount);

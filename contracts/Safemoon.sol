@@ -6,7 +6,6 @@ pragma solidity ^0.6.12;
 pragma experimental ABIEncoderV2;
 
 import "./SafemoonLib.sol";
-import "hardhat/console.sol";
 
 contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgradeable {
     using SafeMathUpgradeable for uint256;
@@ -283,15 +282,12 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
     }
 
     function excludeFromReward(address account) public onlyOwner {
-        console.log("excludeFromReward");
         require(!_isExcluded[account] || account == address(0), "Account is already excluded");
-        console.log(_rOwned[account]);
         if (_rOwned[account] > 0) {
             _tOwned[account] = tokenFromReflection(_rOwned[account]);
             _tTotalExcluded = _tTotalExcluded.add(_tOwned[account]);
             _rTotalExcluded = _rTotalExcluded.add(_rOwned[account]);
         }
-        console.log(_rTotalExcluded);
 
         _isExcluded[account] = true;
         _excluded.push(account);
@@ -541,8 +537,6 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
     }
 
     function _getTValues(uint256 tAmount, uint256 _tierIndex) private view returns (tFeeValues memory) {
-        console.log("_getTValues ================>");
-        console.log(tAmount);
         FeeTier memory tier = feeTiers[_tierIndex];
         tFeeValues memory tValues = tFeeValues(
             0,
@@ -560,7 +554,6 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
             .sub(tValues.tOwner)
             .sub(tValues.tBurn);
 
-        console.log(tValues.tTransferAmount);
         return tValues;
     }
 
@@ -668,15 +661,10 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
             contractTokenBalance = _maxTxAmount;
         }
 
-        console.log("============================");
-        console.log(contractTokenBalance);
-
         bool overMinTokenBalance = contractTokenBalance >= numTokensToCollectBNB;
         if (overMinTokenBalance && !inSwapAndLiquify && from != uniswapV2Pair && swapAndEvolveEnabled) {
             contractTokenBalance = numTokensToCollectBNB;
             collectBNB(contractTokenBalance);
-            console.log("============================");
-            console.log("hhuhuhu");
         }
 
         //indicates if fee should be deducted from transfer
@@ -696,9 +684,6 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
                 tierIndex = _accountsTier[_msgSender()];
             }
         }
-
-        console.log("============================");
-        console.log("yaaaaaaaaaaa");
 
         //transfer amount, it will take tax, burn, liquidity fee
         _tokenTransfer(from, to, amount, tierIndex, takeFee);
@@ -815,29 +800,16 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
         uint256 tierIndex
     ) private {
         FeeValues memory _values = _getValues(tAmount, tierIndex);
-        console.log("_transferBothExcluded ===========> 1");
         _tOwned[sender] = _tOwned[sender].sub(tAmount);
         _rOwned[sender] = _rOwned[sender].sub(_values.rAmount);
         _tOwned[recipient] = _tOwned[recipient].add(_values.tTransferAmount);
-        console.log("_transferBothExcluded ===========> 2");
         _rOwned[recipient] = _rOwned[recipient].add(_values.rTransferAmount);
-        console.log("_transferBothExcluded ===========> 3");
 
-        console.log(_values.tTransferAmount);
-        console.log(_values.rTransferAmount);
-        console.log(_tTotalExcluded);
-        console.log(_rTotalExcluded);
-        console.log(_values.rAmount);
-        console.log(tAmount);
-        uint256 _rDiff = _values.rAmount.sub(_values.rTransferAmount);
-        uint256 _tDiff = tAmount.sub(_values.tTransferAmount);
-        _tTotalExcluded = _tTotalExcluded.add(_tDiff);
-        _rTotalExcluded = _rTotalExcluded.add(_rDiff);
+        _tTotalExcluded = _tTotalExcluded.add(_values.tTransferAmount).sub(tAmount);
+        _rTotalExcluded = _rTotalExcluded.add(_values.rTransferAmount).sub(_values.rAmount);
 
         _takeFees(sender, _values, tierIndex);
-        console.log("_transferBothExcluded ===========> 4");
         _reflectFee(_values.rFee, _values.tFee);
-        console.log("_transferBothExcluded ===========> 5");
         emit Transfer(sender, recipient, _values.tTransferAmount);
     }
 
@@ -848,12 +820,7 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
         uint256 tierIndex
     ) private {
         FeeValues memory _values = _getValues(tAmount, tierIndex);
-        console.log("================> _transferStandard");
-        console.log(_rOwned[sender]);
-        console.log(_values.rAmount);
         _rOwned[sender] = _rOwned[sender].sub(_values.rAmount);
-        console.log(_rOwned[recipient]);
-        console.log(_values.rTransferAmount);
         _rOwned[recipient] = _rOwned[recipient].add(_values.rTransferAmount);
         _takeFees(sender, _values, tierIndex);
         _reflectFee(_values.rFee, _values.tFee);
@@ -902,15 +869,10 @@ contract Safemoon is ISafemoon, Initializable, ContextUpgradeable, OwnableUpgrad
         FeeValues memory values,
         uint256 tierIndex
     ) private {
-        console.log("_takeFees ===========> 1");
         _takeFee(sender, values.tLiquidity, address(this));
-        console.log("_takeFees ===========> 2");
         _takeFee(sender, values.tEchoSystem, feeTiers[tierIndex].ecoSystem);
-        console.log("_takeFees ===========> 3");
         _takeFee(sender, values.tOwner, feeTiers[tierIndex].owner);
-        console.log("_takeFees ===========> 4");
         _takeBurn(sender, values.tBurn);
-        console.log("_takeFees ===========> 5");
     }
 
     function _takeFee(
