@@ -11,6 +11,7 @@
     "moduleResolution": "node",
     "noImplicitAny": true,
     "removeComments": true,
+    "baseUrl": "./",
     "resolveJsonModule": true,
     "sourceMap": false,
     "strict": true,
