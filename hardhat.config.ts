@@ -144,6 +144,17 @@ const config: HardhatUserConfig = {
           },
         },
       },
+      {
+        version: "0.8.11",
+        settings: {
+          // Disable the optimizer when debugging
+          // https://hardhat.org/hardhat-network/#solidity-optimizer-support
+          optimizer: {
+            enabled: true,
+            runs: 200,
+          },
+        },
+      },
     ],
   },
   typechain: {

@@ -9,6 +9,8 @@ import { OldSafemoon, Safemoon, SafeswapFactory, SafeswapRouter, WETH9 } from "t
 
 interface IFixture {
   safemoon: Safemoon;
+  weth: WETH9;
+  router: SafeswapRouter;
 }
 
 export const fixture: Fixture<IFixture | any> = async ([wallet, account1, , account2], _) => {
@@ -28,5 +30,7 @@ export const fixture: Fixture<IFixture | any> = async ([wallet, account1, , acco
   return {
     safemoon,
     oldSafemoon,
+    router,
+    weth,
   };
 };
